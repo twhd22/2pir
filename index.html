@@ -19,7 +19,7 @@
   header p{margin:4px 0 0;font-size:13px;opacity:.85}
   .mode{display:inline-block;margin-top:6px;font-size:12px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px}
   nav{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-  nav button{flex:1;border:0;background:none;padding:12px 4px;font:inherit;font-size:14px;color:var(--sub);border-bottom:3px solid transparent;cursor:pointer}
+  nav button{flex:1;border:0;background:none;padding:12px 2px;font:inherit;font-size:13px;white-space:nowrap;color:var(--sub);border-bottom:3px solid transparent;cursor:pointer}
   nav button.on{color:var(--green);border-color:var(--green);font-weight:700}
   main{max-width:720px;margin:0 auto;padding:14px 12px 60px}
   section{display:none} section.on{display:block}
@@ -81,6 +81,20 @@
   .modal img{max-width:100%;border-radius:8px;margin-top:10px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .25s;z-index:30;pointer-events:none}
   .toast.on{opacity:1}
+  td.nm.link{cursor:pointer;color:var(--green);text-decoration:underline;text-underline-offset:3px}
+  .chart{width:100%;height:auto;display:block;margin-top:8px}
+  .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .mini div{background:var(--gray-soft);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--sub)}
+  .mini b{display:block;font-size:15px;color:var(--ink)}
+  .award{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .award:last-child{border-bottom:0}
+  .award .ic{font-size:26px;width:36px;text-align:center}
+  .award small{display:block;color:var(--sub);font-size:12px}
+  .award b{font-size:15px}
+  .rk td{font-size:13px}
+  .rk td:first-child{font-weight:700;color:var(--green)}
+  .admin-only{display:none}
+  body.admin .admin-only{display:block}
   .demo{background:var(--amber-soft);color:var(--amber);font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:12px;display:none}
 </style>
 </head>
@@ -92,8 +106,9 @@
 </header>
 <nav>
   <button data-tab="upload" class="on">📸 인증</button>
-  <button data-tab="week">📊 주간 현황</button>
+  <button data-tab="week">📊 주간</button>
   <button data-tab="history">🗓 기록표</button>
+  <button data-tab="rank">🏆 랭킹</button>
   <button data-tab="members">👤 회원</button>
 </nav>
 <main>
@@ -147,8 +162,25 @@
     <div class="card">
       <h2>최근 8주 기록표</h2>
       <div class="tablewrap"><table id="histTable"></table></div>
-      <div class="hint">✅ 달성 · ❌ 미달 · – 미제출 / 칸을 누르면 캡처와 상세 기록을 볼 수 있습니다.</div>
+      <div class="hint">✅ 달성 · ❌ 미달 · – 미제출 / <b>이름</b>을 누르면 개인 기록 그래프, <b>칸</b>을 누르면 그 주 캡처를 볼 수 있습니다.</div>
     </div>
+  </section>
+
+  <!-- 월간 랭킹 -->
+  <section id="tab-rank">
+    <div class="weeknav">
+      <button id="prevM">◀</button><b id="monthLabel"></b><button id="nextM">▶</button>
+    </div>
+    <div class="card">
+      <h2>🏅 이달의 시상</h2>
+      <div id="awards"></div>
+    </div>
+    <div class="card">
+      <h2>월간 랭킹</h2>
+      <div class="tablewrap"><table class="rk" id="rankTable"></table></div>
+      <div class="hint">순위 기준: ① 목표 달성 주 수 → ② 평균 달성률(목표 대비 %). 목표가 사람마다 달라서 걸음 수 대신 달성률로 비교합니다. 주차는 그 주 목요일이 속한 달로 계산합니다.</div>
+    </div>
+    <button class="btn ghost" id="copyRankBtn">💬 단톡방 공유용 월간 결과 복사</button>
   </section>
 
   <!-- 회원 -->
@@ -165,6 +197,17 @@
       <h2>회원 목록 · 목표 변경</h2>
       <div id="memberList"></div>
       <div class="hint">목표를 바꾸면 다음 인증부터 적용됩니다. 이미 저장된 주차는 당시 목표로 판정이 유지됩니다.</div>
+    </div>
+    <div class="card admin-only">
+      <h2>🔐 관리자 도구</h2>
+      <button class="btn ghost" id="bkJson">💾 전체 백업 파일 내려받기 (JSON)</button>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="bkThumbs"> 캡처 사진도 백업에 포함 (파일이 커짐)</label>
+      <button class="btn ghost" id="bkCsv">📊 기록 엑셀용 파일 내려받기 (CSV)</button>
+      <button class="btn ghost" id="bkRestore">♻️ 백업 파일로 복원</button>
+      <input type="file" id="bkFile" accept=".json,application/json" hidden>
+      <button class="btn ghost" id="pinChange">🔑 관리자 비밀번호 변경</button>
+      <button class="btn ghost" id="adminOut">🚪 관리자 모드 나가기</button>
+      <div class="hint">백업은 한 달에 한 번 정도 받아 두세요. 복원하면 현재 데이터가 백업 시점으로 바뀝니다.</div>
     </div>
   </section>
 </main>
@@ -216,8 +259,7 @@ if (DEMO) {
   };
 }
 document.getElementById("demoBanner").style.display = DEMO ? "block" : "none";
-const ADMIN = location.hash === "#admin";
-if (ADMIN) document.getElementById("adminTag").style.display = "inline-block";
+let ADMIN = false; // 비밀번호 확인 후 true
 
 /* ---------------- 공통 유틸 ---------------- */
 const $ = id => document.getElementById(id);
@@ -241,7 +283,7 @@ function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"
 let members = {}, records = {};
 let viewWeek = weekKeyOf(new Date());
 const sortedMembers = () => Object.entries(members).sort((a,b)=>a[1].name.localeCompare(b[1].name,"ko"));
-function renderAll(){ renderUploadSelect(); renderWeek(); renderHistory(); renderMembers(); }
+function renderAll(){ renderUploadSelect(); renderWeek(); renderHistory(); renderRank(); renderMembers(); }
 
 /* ---------------- 탭 ---------------- */
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
@@ -266,8 +308,9 @@ function renderUploadSelect(){
 }
 function updateGoalLine(){
   const m = members[$("upName").value];
-  $("upGoal").innerHTML = m ? `내 목표: <b>${fmt(m.goal)}보</b> · <a id="chgGoal">목표 바꾸기</a>` : "";
+  $("upGoal").innerHTML = m ? `내 목표: <b>${fmt(m.goal)}보</b> · <a id="myChart">📈 내 기록 보기</a> · <a id="chgGoal">목표 바꾸기</a>` : "";
   const a = $("chgGoal"); if (a) a.onclick = () => goTab("members");
+  const c = $("myChart"); if (c) c.onclick = () => openPerson($("upName").value);
 }
 $("upName").onchange = () => { localStorage.setItem(LAST_KEY, $("upName").value); updateGoalLine(); updateJudge(); };
 ["upSteps","upStart","upEnd"].forEach(id=>$(id).addEventListener("input",updateJudge));
@@ -505,13 +548,14 @@ function renderHistory(){
   let h = `<tr><th class="nm">이름</th>${weeks.map((k,i)=>`<th>${i===0?"이번 주":weekShort(k)}</th>`).join("")}<th>달성</th><th>연속</th></tr>`;
   list.forEach(([id,m]) => {
     const all = Object.values(records[id] || {});
-    h += `<tr><td class="nm">${esc(m.name)}</td>` + weeks.map(k => {
+    h += `<tr><td class="nm link" data-person="${id}">${esc(m.name)}</td>` + weeks.map(k => {
       const r = records[id]?.[k];
       return r ? `<td class="c ${r.ok?"c-ok":"c-no"}" data-id="${id}" data-wk="${k}">${r.ok?"✅":"❌"}</td>` : `<td class="c-none">–</td>`;
     }).join("") + `<td>${all.filter(r=>r.ok).length}/${all.length}</td><td>${streakOf(id)}주</td></tr>`;
   });
   $("histTable").innerHTML = h;
   document.querySelectorAll("#histTable td.c").forEach(td => td.onclick = () => openDetail(td.dataset.id, td.dataset.wk));
+  document.querySelectorAll("#histTable td[data-person]").forEach(td => td.onclick = () => openPerson(td.dataset.person));
 }
 
 /* --- 상세 모달 --- */
@@ -570,9 +614,209 @@ function renderMembers(){
   });
 }
 
+/* ================================================================
+   공통 모달
+   ================================================================ */
+function openModal(html){ $("modalBox").innerHTML = html; $("modal").classList.add("on"); const c = $("mClose"); if (c) c.onclick = closeModal; }
+const sumBy = (a,f) => a.reduce((s,x)=>s+f(x),0);
+function streakAt(id, wk){ let n = 0, d = parseYmd(wk); while (records[id]?.[ymd(d)]?.ok) { n++; d = addDays(d,-7); } return n; }
+
+/* ================================================================
+   내 기록 그래프 (최근 12주)
+   ================================================================ */
+function openPerson(id){
+  const m = members[id]; if (!m) return;
+  const weeks = []; let w = mondayOf(new Date());
+  for (let i=0;i<12;i++){ weeks.unshift(ymd(w)); w = addDays(w,-7); }
+  const all = Object.entries(records[id] || {}).sort((a,b)=>a[0]<b[0]?-1:1);
+  const recs = all.map(x=>x[1]);
+  const okN = recs.filter(r=>r.ok).length;
+  const best = recs.length ? Math.max(...recs.map(r=>r.avg)) : 0;
+  const avg = recs.length ? Math.round(sumBy(recs,r=>r.avg)/recs.length) : 0;
+  const curStreak = streakOf(id);
+
+  // SVG 막대 그래프
+  const W = 360, H = 190, L = 34, R = 6, T = 16, B = 26, cw = (W-L-R)/weeks.length;
+  const vals = weeks.map(k => records[id]?.[k] || null);
+  const goals = weeks.map((k,i) => vals[i]?.goal ?? m.goal);
+  const top = Math.ceil(Math.max(2000, ...goals, ...vals.map(v=>v?v.avg:0)) * 1.12 / 2000) * 2000;
+  const y = v => T + (H-T-B) * (1 - v/top);
+  const kfmt = v => v >= 1000 ? (v/1000).toFixed(1).replace(/\.0$/,"") + "k" : String(v);
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(m.name)}님 최근 12주 주간 평균 걸음 그래프">`;
+  [0, top/2, top].forEach(v => { svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e7e2"/><text x="${L-4}" y="${y(v)+4}" font-size="10" text-anchor="end" fill="#6b746e">${kfmt(v)}</text>`; });
+  vals.forEach((v,i) => {
+    const x = L + i*cw, bw = cw*0.62, bx = x + (cw-bw)/2;
+    if (v) {
+      svg += `<rect x="${bx}" y="${y(v.avg)}" width="${bw}" height="${H-B-y(v.avg)}" rx="3" fill="${v.ok?"#1f9d55":"#d64545"}"><title>${weekLabel(weeks[i])}: ${fmt(v.avg)}보 / 목표 ${fmt(v.goal)}보</title></rect>`;
+      svg += `<text x="${x+cw/2}" y="${y(v.avg)-4}" font-size="9" text-anchor="middle" fill="#1d2420">${kfmt(v.avg)}</text>`;
+    }
+    if (i % 2 === (weeks.length-1) % 2) { const wn = weekNo(weeks[i]); svg += `<text x="${x+cw/2}" y="${H-8}" font-size="9" text-anchor="middle" fill="#6b746e">${wn.m}/${wn.n}주</text>`; }
+  });
+  // 목표선 (주마다 당시 목표)
+  svg += `<polyline fill="none" stroke="#b7791f" stroke-width="1.5" stroke-dasharray="4 3" points="${goals.map((g,i)=>`${L+i*cw+2},${y(g)} ${L+(i+1)*cw-2},${y(g)}`).join(" ")}"/>`;
+  svg += `</svg>`;
+
+  openModal(`<h3 style="margin:0">📈 ${esc(m.name)}님의 걸음 기록</h3>
+    <div class="hint">최근 12주 · 막대 <span style="color:var(--green)">■ 달성</span> <span style="color:var(--red)">■ 미달</span> · <span style="color:var(--amber)">- - 목표</span></div>
+    ${recs.length ? svg : '<p class="empty">아직 기록이 없습니다.</p>'}
+    <div class="mini">
+      <div>달성 / 제출<b>${okN} / ${recs.length}주</b></div>
+      <div>평균 걸음<b>${recs.length?fmt(avg):"-"}</b></div>
+      <div>최고 기록<b>${recs.length?fmt(best):"-"}</b></div>
+      <div>달성률<b>${recs.length?Math.round(okN/recs.length*100)+"%":"-"}</b></div>
+      <div>현재 연속<b>${curStreak}주</b></div>
+      <div>현재 목표<b>${fmt(m.goal)}</b></div>
+    </div>
+    <button class="btn ghost" id="mClose">닫기</button>`);
+}
+
+/* ================================================================
+   월간 랭킹 · 시상
+   ================================================================ */
+const curWN = weekNo(weekKeyOf(new Date()));
+let viewMonth = { y: curWN.y, m: curWN.m };
+$("prevM").onclick = () => { viewMonth = viewMonth.m === 1 ? { y: viewMonth.y-1, m: 12 } : { y: viewMonth.y, m: viewMonth.m-1 }; renderRank(); };
+$("nextM").onclick = () => { viewMonth = viewMonth.m === 12 ? { y: viewMonth.y+1, m: 1 } : { y: viewMonth.y, m: viewMonth.m+1 }; renderRank(); };
+
+function monthWeeks(y, m){
+  const out = [], cur = weekKeyOf(new Date());
+  let d = addDays(mondayOf(new Date(y, m-1, 1)), -7);
+  for (let i=0;i<7;i++){ const k = ymd(d), wn = weekNo(k); if (wn.y===y && wn.m===m && k<=cur) out.push(k); d = addDays(d,7); }
+  return out;
+}
+function monthStats(y, m){
+  const W = monthWeeks(y, m);
+  return { W, rows: sortedMembers().map(([id, mem]) => {
+    const recs = W.map(k => records[id]?.[k]).filter(Boolean);
+    return { id, name: mem.name, sub: recs.length, ok: recs.filter(r=>r.ok).length,
+      avg: recs.length ? Math.round(sumBy(recs,r=>r.avg)/recs.length) : 0,
+      pct: recs.length ? Math.round(sumBy(recs,r=>r.avg/r.goal)/recs.length*100) : 0,
+      streak: W.length ? streakAt(id, W[W.length-1]) : 0 };
+  }).sort((a,b) => (b.ok-a.ok) || (b.pct-a.pct) || (b.sub-a.sub)) };
+}
+const winners = (rows, key, min = 1) => { const c = rows.filter(r => r.sub > 0 && r[key] >= min); if (!c.length) return []; const mx = Math.max(...c.map(r=>r[key])); return c.filter(r=>r[key]===mx); };
+
+function computeAwards(y, m){
+  const { W, rows } = monthStats(y, m);
+  const prev = m === 1 ? monthStats(y-1, 12) : monthStats(y, m-1);
+  const growth = rows.filter(r=>r.sub).map(r => { const p = prev.rows.find(x=>x.id===r.id); return { ...r, g: p && p.sub ? r.avg - p.avg : -Infinity }; });
+  const names = a => a.map(r=>r.name).join(", ");
+  const perfect = W.length ? rows.filter(r => r.ok === W.length) : [];
+  const steps = winners(rows, "avg"), pct = winners(rows, "pct"), str = winners(rows, "streak", 2), gr = winners(growth.map(r=>({...r, sub:1})), "g", 1);
+  return { W, rows, list: [
+    { ic:"🏅", t:"개근상", d:"이달 모든 주차 목표 달성", v: perfect.length ? names(perfect) : "해당자 없음" },
+    { ic:"🎯", t:"달성률왕", d:"목표 대비 평균 달성률 1위", v: pct.length ? `${names(pct)} (${pct[0].pct}%)` : "해당자 없음" },
+    { ic:"👟", t:"걸음왕", d:"월 평균 걸음 수 1위", v: steps.length ? `${names(steps)} (${fmt(steps[0].avg)}보)` : "해당자 없음" },
+    { ic:"🔥", t:"연속 달성왕", d:"이달 마지막 주 기준 연속 달성 2주 이상 최장", v: str.length ? `${names(str)} (${str[0].streak}주 연속)` : "해당자 없음" },
+    { ic:"📈", t:"성장상", d:"지난달보다 평균 걸음이 가장 많이 늘어난 회원", v: gr.length ? `${names(gr)} (+${fmt(gr[0].g)}보)` : "해당자 없음" }
+  ]};
+}
+function renderRank(){
+  const { y, m } = viewMonth;
+  $("monthLabel").textContent = `${y}년 ${m}월`;
+  $("nextM").disabled = (y > curWN.y) || (y === curWN.y && m >= curWN.m);
+  const { W, rows, list } = computeAwards(y, m);
+  const ongoing = y === curWN.y && m === curWN.m;
+  $("awards").innerHTML = (W.length ? "" : `<div class="empty">이 달에 해당하는 주차가 없습니다.</div>`) +
+    (W.length && ongoing ? `<div class="hint" style="margin:0 0 6px">진행 중인 달이라 현재까지 ${W.length}주 기준입니다.</div>` : "") +
+    (W.length ? list.map(a => `<div class="award"><div class="ic">${a.ic}</div><div><small>${a.t} · ${a.d}</small><b>${esc(a.v)}</b></div></div>`).join("") : "");
+  if (!rows.length) { $("rankTable").innerHTML = `<tr><td class="empty">등록된 회원이 없습니다.</td></tr>`; return; }
+  let rank = 0, prevKey = null;
+  $("rankTable").innerHTML = `<tr><th>순위</th><th class="nm">이름</th><th>달성</th><th>제출</th><th>달성률</th><th>평균 걸음</th></tr>` +
+    rows.map((r,i) => {
+      if (!r.sub) return `<tr><td>-</td><td class="nm">${esc(r.name)}</td><td colspan="4" style="color:var(--sub)">미제출</td></tr>`;
+      const key = `${r.ok}-${r.pct}`; if (key !== prevKey) { rank = i+1; prevKey = key; }
+      return `<tr><td>${rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":rank}</td><td class="nm">${esc(r.name)}</td><td>${r.ok}/${W.length}</td><td>${r.sub}</td><td>${r.pct}%</td><td>${fmt(r.avg)}</td></tr>`;
+    }).join("");
+}
+$("copyRankBtn").onclick = async () => {
+  const { y, m } = viewMonth, { W, rows, list } = computeAwards(y, m);
+  const lines = [`🏆 이파이알(2πr) ${y}년 ${m}월 결과 (${W.length}주 기준)`, ""];
+  list.forEach(a => lines.push(`${a.ic} ${a.t}: ${a.v}`));
+  lines.push("", "[월간 랭킹]");
+  rows.filter(r=>r.sub).forEach((r,i) => lines.push(`${i+1}. ${r.name} - 달성 ${r.ok}/${W.length}주, 달성률 ${r.pct}%`));
+  const none = rows.filter(r=>!r.sub).map(r=>r.name); if (none.length) lines.push(`미제출: ${none.join(", ")}`);
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); toast("복사 완료! 단톡방에 붙여넣으세요"); } catch { prompt("아래 내용을 복사하세요", text); }
+};
+
+/* ================================================================
+   관리자 비밀번호 (주소 끝 #admin 으로 접속)
+   ================================================================ */
+async function sha256(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("2pir-walk:" + t)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function enableAdmin(){ ADMIN = true; document.body.classList.add("admin"); $("adminTag").style.display = "inline-block"; renderAll(); }
+function pinForm(title, desc, fields, onOk){
+  openModal(`<h3 style="margin:0 0 6px">${title}</h3><div class="hint">${desc}</div>
+    ${fields.map((f,i)=>`<label>${f}</label><input type="password" inputmode="numeric" id="pin${i}" autocomplete="off">`).join("")}
+    <div class="status warn" id="pinMsg"></div>
+    <button class="btn" id="pinOk">확인</button><button class="btn ghost" id="mClose">취소</button>`);
+  $("pin0").focus();
+  const go = async () => { const v = fields.map((_,i)=>$("pin"+i).value.trim()); const err = await onOk(v); if (err) $("pinMsg").textContent = err; else closeModal(); };
+  $("pinOk").onclick = go;
+  fields.forEach((_,i)=>$("pin"+i).addEventListener("keydown", e => { if (e.key === "Enter") go(); }));
+}
+async function adminLogin(){
+  if (location.hash !== "#admin" || ADMIN) return;
+  if (sessionStorage.getItem("walk-admin") === "1") { enableAdmin(); return; }
+  const saved = await store.get(`${ROOT}/config/adminHash`);
+  if (!saved) {
+    pinForm("🔑 관리자 비밀번호 만들기", "처음 한 번만 설정합니다. 숫자 4자리 이상으로 정해 주세요.", ["새 비밀번호", "한 번 더 입력"], async ([a,b]) => {
+      if (a.length < 4) return "4자리 이상 입력해 주세요.";
+      if (a !== b) return "두 번 입력한 비밀번호가 다릅니다.";
+      await store.set(`${ROOT}/config/adminHash`, await sha256(a));
+      sessionStorage.setItem("walk-admin","1"); enableAdmin(); toast("관리자 비밀번호를 설정했습니다");
+    });
+  } else {
+    pinForm("🔐 관리자 확인", "관리자 비밀번호를 입력하세요.", ["비밀번호"], async ([a]) => {
+      if (await sha256(a) !== saved) return "비밀번호가 틀렸습니다.";
+      sessionStorage.setItem("walk-admin","1"); enableAdmin(); toast("관리자 모드입니다");
+    });
+  }
+}
+window.addEventListener("hashchange", adminLogin);
+$("pinChange").onclick = () => pinForm("🔑 비밀번호 변경", "현재 비밀번호와 새 비밀번호를 입력하세요.", ["현재 비밀번호", "새 비밀번호", "새 비밀번호 확인"], async ([c,a,b]) => {
+  if (await sha256(c) !== await store.get(`${ROOT}/config/adminHash`)) return "현재 비밀번호가 틀렸습니다.";
+  if (a.length < 4) return "새 비밀번호는 4자리 이상이어야 합니다.";
+  if (a !== b) return "새 비밀번호 두 개가 다릅니다.";
+  await store.set(`${ROOT}/config/adminHash`, await sha256(a)); toast("비밀번호를 변경했습니다");
+});
+$("adminOut").onclick = () => { sessionStorage.removeItem("walk-admin"); ADMIN = false; document.body.classList.remove("admin"); $("adminTag").style.display = "none"; history.replaceState(null, "", location.pathname); renderAll(); goTab("upload"); toast("관리자 모드를 나왔습니다"); };
+
+/* ================================================================
+   데이터 백업 · 복원
+   ================================================================ */
+function download(name, content, type){ const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+$("bkJson").onclick = async () => {
+  const data = { app: "2pir-walk", version: 1, exportedAt: new Date().toISOString(), members, records };
+  if ($("bkThumbs").checked) data.thumbs = await store.get(`${ROOT}/thumbs`) || {};
+  download(`2pir-백업-${ymd(new Date())}.json`, JSON.stringify(data), "application/json");
+  toast("백업 파일을 내려받았습니다");
+};
+$("bkCsv").onclick = () => {
+  const q = v => `"${String(v).replace(/"/g,'""')}"`;
+  const rows = [["이름","주차","주 시작(월)","캡처 기간 시작","캡처 기간 끝","평균 걸음","목표","결과","저장 시각"]];
+  sortedMembers().forEach(([id,m]) => Object.entries(records[id] || {}).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([wk,r]) =>
+    rows.push([m.name, weekLabel(wk), wk, r.start, r.end, r.avg, r.goal, r.ok?"달성":"미달", new Date(r.at).toLocaleString("ko-KR")])));
+  download(`2pir-기록-${ymd(new Date())}.csv`, "﻿" + rows.map(r=>r.map(q).join(",")).join("\r\n"), "text/csv");
+  toast("엑셀용 파일을 내려받았습니다");
+};
+$("bkRestore").onclick = () => $("bkFile").click();
+$("bkFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  let data; try { data = JSON.parse(await f.text()); } catch { toast("백업 파일을 읽을 수 없습니다"); return; }
+  if (data.app !== "2pir-walk" || typeof data.members !== "object") { toast("이 사이트의 백업 파일이 아닙니다"); return; }
+  const n = Object.keys(data.members || {}).length;
+  if (!confirm(`${data.exportedAt?.slice(0,10)} 백업(회원 ${n}명)으로 복원할까요?\n현재 회원·기록이 백업 내용으로 바뀝니다.`)) return;
+  await store.set(`${ROOT}/members`, data.members || null);
+  await store.set(`${ROOT}/records`, data.records || null);
+  if (data.thumbs) await store.set(`${ROOT}/thumbs`, data.thumbs);
+  toast("복원을 완료했습니다");
+};
+
 /* ---------------- 실시간 구독 시작 ---------------- */
 store.on(`${ROOT}/members`, v => { members = v || {}; renderAll(); });
 store.on(`${ROOT}/records`, v => { records = v || {}; renderAll(); });
+adminLogin();
 </script>
 </body>
 </html>
