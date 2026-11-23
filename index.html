@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>이파이알(2πr) 걸음 인증</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f3; --card:#fff; --ink:#1d2420; --sub:#6b746e; --line:#e3e7e2;
+    --green:#1f9d55; --green-soft:#e6f5ec; --red:#d64545; --red-soft:#fdecec;
+    --amber:#b7791f; --amber-soft:#fdf5e6; --gray-soft:#f0f2ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+  header{background:var(--green);color:#fff;padding:18px 16px 14px}
+  header h1{margin:0;font-size:19px;font-weight:700}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85}
+  .mode{display:inline-block;margin-top:6px;font-size:12px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px}
+  nav{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  nav button{flex:1;border:0;background:none;padding:12px 4px;font:inherit;font-size:14px;color:var(--sub);border-bottom:3px solid transparent;cursor:pointer}
+  nav button.on{color:var(--green);border-color:var(--green);font-weight:700}
+  main{max-width:720px;margin:0 auto;padding:14px 12px 60px}
+  section{display:none} section.on{display:block}
+  .card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid var(--line)}
+  .card h2{margin:0 0 12px;font-size:16px}
+  label{display:block;font-size:13px;color:var(--sub);margin:12px 0 5px}
+  select,input[type=number],input[type=text],input[type=date]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff;color:var(--ink)}
+  .row{display:flex;gap:8px} .row>*{flex:1}
+  .btn{display:block;width:100%;padding:13px;border:0;border-radius:10px;background:var(--green);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:16px}
+  .btn:disabled{background:#a9c9b5;cursor:default}
+  .btn.ghost{background:var(--gray-soft);color:var(--ink);font-weight:600;font-size:14px;padding:10px}
+  .btn.small{display:inline-block;width:auto;padding:7px 12px;font-size:13px;margin:0}
+  .btn.danger{background:var(--red-soft);color:var(--red)}
+  .drop{border:2px dashed #b9d8c5;border-radius:12px;padding:22px 12px;text-align:center;background:var(--green-soft);cursor:pointer;margin-top:12px}
+  .drop b{display:block;font-size:16px;color:var(--green)}
+  .drop span{font-size:13px;color:var(--sub)}
+  .preview{display:none;margin-top:12px;text-align:center}
+  .preview img{max-width:100%;max-height:340px;border-radius:10px;border:1px solid var(--line)}
+  .progress{height:8px;background:var(--gray-soft);border-radius:4px;overflow:hidden;margin-top:10px;display:none}
+  .progress i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+  .status{font-size:13px;margin-top:8px;color:var(--sub);min-height:18px}
+  .status.warn{color:var(--amber)} .status.good{color:var(--green)}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  .judge{margin-top:14px;padding:12px;border-radius:10px;background:var(--gray-soft);font-size:14px;display:none}
+  .judge.ok{background:var(--green-soft);color:var(--green)} .judge.no{background:var(--red-soft);color:var(--red)}
+  .goalline{font-size:13px;color:var(--sub);margin-top:6px}
+  .goalline a{color:var(--green);cursor:pointer;text-decoration:underline}
+  .weeknav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .weeknav b{font-size:16px}
+  .weeknav button{border:1px solid var(--line);background:#fff;border-radius:8px;width:40px;height:36px;font-size:16px;cursor:pointer}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .stat small{display:block;font-size:12px;color:var(--sub)}
+  .stat b{font-size:19px}
+  .person{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .person:last-child{border-bottom:0}
+  .person .nm{width:74px;font-weight:600;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .person .bar{flex:1}
+  .person .bar div{height:8px;background:var(--gray-soft);border-radius:4px;overflow:hidden}
+  .person .bar i{display:block;height:100%;border-radius:4px}
+  .person .bar small{font-size:12px;color:var(--sub)}
+  .badge{font-size:12px;padding:3px 8px;border-radius:10px;flex-shrink:0;font-weight:600}
+  .b-ok{background:var(--green-soft);color:var(--green)} .b-no{background:var(--red-soft);color:var(--red)} .b-none{background:var(--gray-soft);color:var(--sub)}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th,td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  th{font-weight:600;color:var(--sub);font-size:12px}
+  td.nm,th.nm{text-align:left;position:sticky;left:0;background:#fff;font-weight:600}
+  td.c{cursor:pointer}
+  .c-ok{color:var(--green);font-weight:700} .c-no{color:var(--red)} .c-none{color:#c3c9c4}
+  .member{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .member:last-child{border-bottom:0}
+  .member .nm{flex:1;font-weight:600}
+  .member input{width:110px;padding:8px}
+  .empty{color:var(--sub);text-align:center;padding:20px 0;font-size:14px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .modal.on{display:flex}
+  .modal .box{background:#fff;border-radius:14px;padding:18px;max-width:420px;width:100%;max-height:90vh;overflow:auto}
+  .modal img{max-width:100%;border-radius:8px;margin-top:10px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .25s;z-index:30;pointer-events:none}
+  .toast.on{opacity:1}
+  .demo{background:var(--amber-soft);color:var(--amber);font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:12px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚶 이파이알(2πr) 걸음 인증</h1>
+  <p>원의 둘레 2πr만큼, 오늘도 한 바퀴 더 · 캡처만 올리면 자동 기록</p>
+  <span class="mode" id="adminTag" style="display:none">관리자 모드</span>
+</header>
+<nav>
+  <button data-tab="upload" class="on">📸 인증</button>
+  <button data-tab="week">📊 주간 현황</button>
+  <button data-tab="history">🗓 기록표</button>
+  <button data-tab="members">👤 회원</button>
+</nav>
+<main>
+  <div class="demo" id="demoBanner">⚠️ 체험 모드입니다. Firebase 설정 전이라 이 기기에만 저장됩니다.</div>
+
+  <!-- 인증 -->
+  <section id="tab-upload" class="on">
+    <div class="card">
+      <h2>이번 주 걸음 인증하기</h2>
+      <label>이름</label>
+      <select id="upName"></select>
+      <div class="goalline" id="upGoal"></div>
+
+      <div class="drop" id="drop">
+        <b>📷 걸음 수 캡처 올리기</b>
+        <span>건강 앱의 '주간 평균 걸음' 화면을 캡처해서 선택하세요</span>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div class="preview" id="preview"><img id="previewImg" alt="업로드한 캡처"></div>
+      <div class="progress" id="prog"><i></i></div>
+      <div class="status" id="ocrStatus"></div>
+
+      <label>주간 평균 걸음 수</label>
+      <input type="number" id="upSteps" inputmode="numeric" placeholder="예: 8123">
+      <div class="row">
+        <div><label>기간 시작</label><input type="date" id="upStart"></div>
+        <div><label>기간 끝</label><input type="date" id="upEnd"></div>
+      </div>
+      <div class="hint">자동 인식 결과가 틀리면 직접 고친 뒤 저장하세요. 사진 없이 숫자만 입력해도 됩니다.</div>
+      <div class="judge" id="judge"></div>
+      <button class="btn" id="saveBtn" disabled>기록 저장</button>
+    </div>
+  </section>
+
+  <!-- 주간 현황 -->
+  <section id="tab-week">
+    <div class="weeknav">
+      <button id="prevW">◀</button><b id="weekLabel"></b><button id="nextW">▶</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>제출</small><b id="sSub">-</b></div>
+      <div class="stat"><small>목표 달성</small><b id="sOk">-</b></div>
+      <div class="stat"><small>평균 걸음</small><b id="sAvg">-</b></div>
+    </div>
+    <div class="card" id="weekList"></div>
+    <button class="btn ghost" id="copyBtn">💬 단톡방 공유용 결과 복사</button>
+  </section>
+
+  <!-- 기록표 -->
+  <section id="tab-history">
+    <div class="card">
+      <h2>최근 8주 기록표</h2>
+      <div class="tablewrap"><table id="histTable"></table></div>
+      <div class="hint">✅ 달성 · ❌ 미달 · – 미제출 / 칸을 누르면 캡처와 상세 기록을 볼 수 있습니다.</div>
+    </div>
+  </section>
+
+  <!-- 회원 -->
+  <section id="tab-members">
+    <div class="card">
+      <h2>회원 등록</h2>
+      <label>이름</label>
+      <input type="text" id="newName" placeholder="예: 김진영" maxlength="10">
+      <label>주간 평균 목표 걸음 수</label>
+      <input type="number" id="newGoal" inputmode="numeric" value="6000" step="500" min="1000">
+      <button class="btn" id="addBtn">등록하기</button>
+    </div>
+    <div class="card">
+      <h2>회원 목록 · 목표 변경</h2>
+      <div id="memberList"></div>
+      <div class="hint">목표를 바꾸면 다음 인증부터 적용됩니다. 이미 저장된 주차는 당시 목표로 판정이 유지됩니다.</div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ================================================================
+   ① Firebase 설정 — 만리장성 때 쓴 Firebase 프로젝트의 firebaseConfig를
+      그대로 붙여넣으면 됩니다. (apiKey가 비어 있으면 체험 모드로 동작)
+   ================================================================ */
+const firebaseConfig = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+const ROOT = "walk"; // DB 안에서 이 사이트가 쓰는 폴더 이름
+
+/* ---------------- 저장소 (Firebase / 체험모드) ---------------- */
+const DEMO = !firebaseConfig.apiKey;
+let store;
+if (DEMO) {
+  const KEY = "walk-demo-db";
+  let data = {}; try { data = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e){}
+  const subs = [];
+  const getAt = p => p.split("/").reduce((o,k)=>o==null?undefined:o[k], data);
+  const setAt = (p,v) => { const ks=p.split("/"); let o=data; ks.slice(0,-1).forEach(k=>{ if(typeof o[k]!=="object"||o[k]===null) o[k]={}; o=o[k]; }); if(v===null) delete o[ks.at(-1)]; else o[ks.at(-1)]=v; };
+  const flush = () => { try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} subs.forEach(s=>s.cb(structuredClone(getAt(s.p)??null))); };
+  store = {
+    on:(p,cb)=>{ subs.push({p,cb}); cb(structuredClone(getAt(p)??null)); },
+    get:async p=>structuredClone(getAt(p)??null),
+    set:async (p,v)=>{ setAt(p,v); flush(); },
+    remove:async p=>{ setAt(p,null); flush(); }
+  };
+} else {
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const db = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const d = db.getDatabase(initializeApp(firebaseConfig));
+  store = {
+    on:(p,cb)=>db.onValue(db.ref(d,p), s=>cb(s.val())),
+    get:async p=>(await db.get(db.ref(d,p))).val(),
+    set:(p,v)=>db.set(db.ref(d,p),v),
+    remove:p=>db.remove(db.ref(d,p))
+  };
+}
+document.getElementById("demoBanner").style.display = DEMO ? "block" : "none";
+const ADMIN = location.hash === "#admin";
+if (ADMIN) document.getElementById("adminTag").style.display = "inline-block";
+
+/* ---------------- 공통 유틸 ---------------- */
+const $ = id => document.getElementById(id);
+const fmt = n => (n ?? 0).toLocaleString("ko-KR");
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const mondayOf = d => { const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const w=(x.getDay()+6)%7; return addDays(x,-w); };
+const weekKeyOf = d => ymd(mondayOf(d));
+const md = d => `${d.getMonth()+1}.${d.getDate()}`;
+// 주차: 그 주의 목요일이 속한 달 기준 (예: 11월 3주차)
+const weekNo = key => { const th = addDays(parseYmd(key),3); return { y: th.getFullYear(), m: th.getMonth()+1, n: Math.ceil(th.getDate()/7) }; };
+const weekLabel = key => { const w = weekNo(key); return `${w.y}년 ${w.m}월 ${w.n}주차`; };
+const weekShort = key => { const w = weekNo(key); return `${w.m}월 ${w.n}주`; };
+const esc = s => String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2200); }
+
+/* ---------------- 상태 ---------------- */
+let members = {}, records = {};
+let viewWeek = weekKeyOf(new Date());
+const sortedMembers = () => Object.entries(members).sort((a,b)=>a[1].name.localeCompare(b[1].name,"ko"));
+function renderAll(){ renderUploadSelect(); renderWeek(); renderHistory(); renderMembers(); }
+
+/* ---------------- 탭 ---------------- */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id==="tab-"+b.dataset.tab));
+  window.scrollTo(0,0);
+});
+const goTab = t => document.querySelector(`nav button[data-tab="${t}"]`).click();
+
+/* ================================================================
+   인증(업로드) 탭
+   ================================================================ */
+const LAST_KEY = "walk-last-member";
+function renderUploadSelect(){
+  const sel = $("upName"), cur = sel.value || localStorage.getItem(LAST_KEY) || "";
+  const list = sortedMembers();
+  sel.innerHTML = list.length
+    ? `<option value="">이름을 선택하세요</option>` + list.map(([id,m])=>`<option value="${id}">${esc(m.name)}</option>`).join("")
+    : `<option value="">먼저 '회원' 탭에서 등록해 주세요</option>`;
+  if (members[cur]) sel.value = cur;
+  updateGoalLine(); updateJudge();
+}
+function updateGoalLine(){
+  const m = members[$("upName").value];
+  $("upGoal").innerHTML = m ? `내 목표: <b>${fmt(m.goal)}보</b> · <a id="chgGoal">목표 바꾸기</a>` : "";
+  const a = $("chgGoal"); if (a) a.onclick = () => goTab("members");
+}
+$("upName").onchange = () => { localStorage.setItem(LAST_KEY, $("upName").value); updateGoalLine(); updateJudge(); };
+["upSteps","upStart","upEnd"].forEach(id=>$(id).addEventListener("input",updateJudge));
+
+function updateJudge(){
+  const m = members[$("upName").value], steps = +$("upSteps").value, j = $("judge");
+  const ready = m && steps > 0 && $("upStart").value && $("upEnd").value;
+  $("saveBtn").disabled = !ready;
+  if (!m || !(steps>0)) { j.style.display="none"; return; }
+  const pct = Math.round(steps / m.goal * 100), ok = steps >= m.goal;
+  j.className = "judge " + (ok?"ok":"no"); j.style.display="block";
+  j.innerHTML = ok
+    ? `🎉 목표 달성! ${fmt(steps)}보 / 목표 ${fmt(m.goal)}보 (${pct}%)`
+    : `목표까지 ${fmt(m.goal-steps)}보 부족 · ${fmt(steps)}보 / 목표 ${fmt(m.goal)}보 (${pct}%)`;
+}
+
+function setDefaultPeriod(){
+  const mon = mondayOf(new Date());
+  $("upStart").value = ymd(mon); $("upEnd").value = ymd(addDays(mon,6));
+}
+setDefaultPeriod();
+
+/* --- 사진 선택 --- */
+let thumbData = null;
+$("drop").onclick = () => $("file").click();
+$("file").onchange = e => { const f = e.target.files[0]; if (f) handleImage(f); e.target.value=""; };
+
+async function handleImage(file){
+  const img = await loadImage(file);
+  $("previewImg").src = img.src; $("preview").style.display = "block";
+  thumbData = makeThumb(img);
+  const st = $("ocrStatus"), prog = $("prog"), bar = prog.querySelector("i");
+  st.className = "status"; st.textContent = "글자 인식 준비 중… (처음 한 번은 10~20초 걸릴 수 있어요)";
+  prog.style.display = "block"; bar.style.width = "3%";
+  try {
+    const text = await runOcr(prepCanvas(img), p => { bar.style.width = Math.max(3, Math.round(p*100)) + "%"; st.textContent = `글자 인식 중… ${Math.round(p*100)}%`; });
+    const r = parseSteps(text);
+    const msgs = [];
+    if (r.steps) $("upSteps").value = r.steps; else msgs.push("걸음 수");
+    if (r.start && r.end) { $("upStart").value = ymd(r.start); $("upEnd").value = ymd(r.end); }
+    else { setDefaultPeriod(); msgs.push("기간"); }
+    if (msgs.length) { st.className = "status warn"; st.textContent = `⚠️ 못 읽은 항목: ${msgs.join(", ")} — 직접 확인·입력해 주세요.`; }
+    else { st.className = "status good"; st.textContent = "✅ 인식 완료! 숫자와 기간이 맞는지 확인하고 저장하세요."; }
+  } catch(err) {
+    console.error(err);
+    st.className = "status warn"; st.textContent = "⚠️ 자동 인식에 실패했어요. 숫자를 직접 입력해 주세요.";
+  }
+  prog.style.display = "none"; updateJudge();
+}
+
+function loadImage(file){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+}
+function makeThumb(img){
+  const w = Math.min(360, img.width), h = Math.round(img.height * w / img.width);
+  const c = document.createElement("canvas"); c.width=w; c.height=h;
+  c.getContext("2d").drawImage(img,0,0,w,h);
+  return c.toDataURL("image/jpeg", 0.6);
+}
+// OCR 정확도를 위해 크기 보정 + 흑백 + (다크모드면) 반전
+function prepCanvas(img){
+  let scale = 1;
+  if (img.width < 1000) scale = Math.min(4, 1000 / img.width);
+  if (img.width > 1600) scale = 1600 / img.width;
+  const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+  const c = document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx = c.getContext("2d"); ctx.imageSmoothingQuality = "high"; ctx.drawImage(img,0,0,w,h);
+  const d = ctx.getImageData(0,0,w,h), p = d.data; let sum = 0;
+  for (let i=0;i<p.length;i+=4){ const g = .299*p[i]+.587*p[i+1]+.114*p[i+2]; p[i]=p[i+1]=p[i+2]=g; sum+=g; }
+  const dark = sum/(p.length/4) < 110;
+  for (let i=0;i<p.length;i+=4){ let g=p[i]; if(dark) g=255-g; g = Math.max(0,Math.min(255,(g-128)*1.4+128)); p[i]=p[i+1]=p[i+2]=g; }
+  ctx.putImageData(d,0,0); return c;
+}
+let workerP = null, progCb = null;
+function getWorker(){
+  if (!workerP) {
+    workerP = Tesseract.createWorker("kor", 1, { logger: m => { if (m.status === "recognizing text" && progCb) progCb(m.progress); } });
+    workerP.catch(() => { workerP = null; }); // 실패 시 다음 업로드 때 재시도
+  }
+  return workerP;
+}
+async function runOcr(canvas, onProg){
+  progCb = onProg;
+  const job = (async () => { const w = await getWorker(); const { data } = await w.recognize(canvas); return data.text; })();
+  const limit = new Promise((_, rej) => setTimeout(() => { workerP = null; rej(new Error("timeout")); }, 60000));
+  return Promise.race([job, limit]);
+}
+
+/* --- 텍스트에서 평균 걸음 수 / 기간 추출 --- */
+function parseSteps(raw){
+  const flat = raw.replace(/[|]/g," ").replace(/，/g,",").replace(/\s+/g," ")
+    .replace(/(\d)\s*[,.]\s+(\d{3})(?!\d)/g, "$1,$2"); // "3. 172" → "3,172" (큰 글씨 쉼표 오인식)
+  const num = s => parseInt(s.replace(/[^\d]/g,""),10);
+  const ok = n => n>=100 && n<=60000;
+  let steps = null, m;
+  // 1) "8,123걸음" 형태 (걸음을 골음·결음 등으로 잘못 읽는 경우 포함)
+  const re1 = /(\d{1,2}[,.]\d{3}|\d{3,5})\s*[걸골결겉]\s*[음응읍]/g;
+  while ((m = re1.exec(flat))) { const n = num(m[1]); if (ok(n)) { steps = n; break; } }
+  // 2) "평균" 바로 뒤 숫자
+  if (steps == null) { const i = flat.search(/평\s*균/); if (i >= 0) { const mm = flat.slice(i, i+60).match(/(\d{1,2}[,.]\d{3}|\d{3,5})/); if (mm && ok(num(mm[1]))) steps = num(mm[1]); } }
+  // 3) 콤마 숫자 중 그래프 눈금(5,000·10,000 등) 제외
+  if (steps == null) { const r = /(\d{1,2},\d{3})/g; while ((m = r.exec(flat))) { const n = num(m[1]); if (ok(n) && n % 5000 !== 0) { steps = n; break; } } }
+  // 기간: "2026년 11월 8일~14일", "2026년 11월 29일~12월 5일", "2026.11.9 - 11.15"
+  let start = null, end = null;
+  const d = /(20\d{2})\s*[년.\/-]\s*(\d{1,2})\s*[월.\/-]\s*(\d{1,2})\s*일?\s*[~\-–—]\s*(?:(20\d{2})\s*[년.\/-]\s*)?(?:(\d{1,2})\s*[월.\/-]\s*)?(\d{1,2})\s*일?/.exec(flat);
+  if (d) {
+    const y=+d[1], mo=+d[2], da=+d[3];
+    let y2 = d[4]?+d[4]:y, mo2 = d[5]?+d[5]:mo; const da2 = +d[6];
+    if (!d[4] && mo2 < mo) y2 = y + 1;
+    start = new Date(y,mo-1,da); end = new Date(y2,mo2-1,da2);
+    if (isNaN(start) || isNaN(end) || end < start || (end-start)/864e5 > 13) { start = end = null; }
+  }
+  // 연도 없는 형식(삼성헬스): "11월 17일 - 23일", "11월 29일 - 12월 5일"
+  if (!start) {
+    const e = /(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*[~\-–—]\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일/.exec(flat);
+    if (e) {
+      const mo=+e[1], da=+e[2], mo2=e[3]?+e[3]:mo, da2=+e[4];
+      const today = new Date();
+      let y2 = today.getFullYear();
+      if (new Date(y2,mo2-1,da2) > addDays(today,7)) y2--; // 1월에 12월 캡처를 올린 경우
+      const y = mo2 < mo ? y2-1 : y2;
+      const s = new Date(y,mo-1,da), en = new Date(y2,mo2-1,da2);
+      if (!isNaN(s) && !isNaN(en) && en >= s && (en-s)/864e5 <= 13) { start = s; end = en; }
+    }
+  }
+  return { steps, start, end };
+}
+
+/* --- 저장 --- */
+$("saveBtn").onclick = async () => {
+  const id = $("upName").value, m = members[id]; if (!m) return;
+  const steps = +$("upSteps").value, start = $("upStart").value, end = $("upEnd").value;
+  if (parseYmd(end) < parseYmd(start)) { toast("기간 끝이 시작보다 빠릅니다"); return; }
+  const wk = weekKeyOf(parseYmd(end));
+  if (records[id]?.[wk] && !confirm(`${weekLabel(wk)} 기록이 이미 있습니다. 새 기록으로 바꿀까요?`)) return;
+  $("saveBtn").disabled = true;
+  try {
+    await store.set(`${ROOT}/records/${id}/${wk}`, { avg: steps, start, end, goal: m.goal, ok: steps >= m.goal, img: !!thumbData, at: Date.now() });
+    if (thumbData) await store.set(`${ROOT}/thumbs/${id}/${wk}`, thumbData);
+    else await store.remove(`${ROOT}/thumbs/${id}/${wk}`);
+    toast(steps >= m.goal ? "🎉 저장 완료! 목표 달성입니다" : "저장 완료! 다음 주도 화이팅");
+    // 초기화
+    thumbData = null; $("preview").style.display="none"; $("upSteps").value=""; $("ocrStatus").textContent=""; setDefaultPeriod(); updateJudge();
+    viewWeek = wk; renderWeek(); goTab("week");
+  } catch(e) { console.error(e); toast("저장 실패: 인터넷 연결을 확인해 주세요"); $("saveBtn").disabled=false; }
+};
+
+/* ================================================================
+   주간 현황 탭
+   ================================================================ */
+$("prevW").onclick = () => { viewWeek = ymd(addDays(parseYmd(viewWeek),-7)); renderWeek(); };
+$("nextW").onclick = () => { viewWeek = ymd(addDays(parseYmd(viewWeek),7)); renderWeek(); };
+
+function weekRows(wk){
+  return sortedMembers().map(([id,m]) => ({ id, name:m.name, goal:m.goal, r: records[id]?.[wk] || null }))
+    .sort((a,b) => (b.r?b.r.avg/b.r.goal:-1) - (a.r?a.r.avg/a.r.goal:-1));
+}
+function renderWeek(){
+  $("weekLabel").textContent = weekLabel(viewWeek);
+  $("nextW").disabled = viewWeek >= weekKeyOf(new Date());
+  const rows = weekRows(viewWeek), sub = rows.filter(x=>x.r), okN = sub.filter(x=>x.r.ok).length;
+  $("sSub").textContent = `${sub.length}/${rows.length}`;
+  $("sOk").textContent = `${okN}명`;
+  $("sAvg").textContent = sub.length ? fmt(Math.round(sub.reduce((s,x)=>s+x.r.avg,0)/sub.length)) : "-";
+  if (!rows.length) { $("weekList").innerHTML = `<div class="empty">아직 등록된 회원이 없습니다.<br>'회원' 탭에서 먼저 등록해 주세요.</div>`; return; }
+  $("weekList").innerHTML = rows.map(x => {
+    if (!x.r) return `<div class="person" data-id="${x.id}"><div class="nm">${esc(x.name)}</div><div class="bar"><div><i style="width:0"></i></div><small>목표 ${fmt(x.goal)}보</small></div><span class="badge b-none">미제출</span></div>`;
+    const pct = Math.round(x.r.avg / x.r.goal * 100);
+    return `<div class="person" data-id="${x.id}"><div class="nm">${esc(x.name)}</div>
+      <div class="bar"><div><i style="width:${Math.min(100,pct)}%;background:${x.r.ok?"var(--green)":"var(--red)"}"></i></div>
+      <small>${fmt(x.r.avg)}보 / 목표 ${fmt(x.r.goal)}보 (${pct}%)</small></div>
+      <span class="badge ${x.r.ok?"b-ok":"b-no"}">${x.r.ok?"달성":"미달"}</span></div>`;
+  }).join("");
+  document.querySelectorAll("#weekList .person").forEach(el => el.onclick = () => openDetail(el.dataset.id, viewWeek));
+}
+
+$("copyBtn").onclick = async () => {
+  const rows = weekRows(viewWeek), sub = rows.filter(x=>x.r);
+  const lines = [`🚶 이파이알(2πr) 주간 걸음 결과 (${weekLabel(viewWeek)})`, `제출 ${sub.length}/${rows.length}명 · 달성 ${sub.filter(x=>x.r.ok).length}명`, ""];
+  rows.forEach(x => lines.push(x.r ? `${x.r.ok?"✅":"❌"} ${x.name} ${fmt(x.r.avg)}보 (목표 ${fmt(x.r.goal)})` : `⬜ ${x.name} 미제출`));
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); toast("복사 완료! 단톡방에 붙여넣으세요"); }
+  catch { prompt("아래 내용을 복사하세요", text); }
+};
+
+/* ================================================================
+   기록표 탭 (최근 8주)
+   ================================================================ */
+function streakOf(id){
+  let n = 0, wk = mondayOf(new Date());
+  if (!records[id]?.[ymd(wk)]) wk = addDays(wk,-7); // 이번 주 미제출이면 지난주부터 계산
+  while (records[id]?.[ymd(wk)]?.ok) { n++; wk = addDays(wk,-7); }
+  return n;
+}
+function renderHistory(){
+  const weeks = []; let w = mondayOf(new Date());
+  for (let i=0;i<8;i++){ weeks.push(ymd(w)); w = addDays(w,-7); } // 최신 주가 왼쪽
+  const list = sortedMembers();
+  if (!list.length) { $("histTable").innerHTML = `<tr><td class="empty">등록된 회원이 없습니다.</td></tr>`; return; }
+  let h = `<tr><th class="nm">이름</th>${weeks.map((k,i)=>`<th>${i===0?"이번 주":weekShort(k)}</th>`).join("")}<th>달성</th><th>연속</th></tr>`;
+  list.forEach(([id,m]) => {
+    const all = Object.values(records[id] || {});
+    h += `<tr><td class="nm">${esc(m.name)}</td>` + weeks.map(k => {
+      const r = records[id]?.[k];
+      return r ? `<td class="c ${r.ok?"c-ok":"c-no"}" data-id="${id}" data-wk="${k}">${r.ok?"✅":"❌"}</td>` : `<td class="c-none">–</td>`;
+    }).join("") + `<td>${all.filter(r=>r.ok).length}/${all.length}</td><td>${streakOf(id)}주</td></tr>`;
+  });
+  $("histTable").innerHTML = h;
+  document.querySelectorAll("#histTable td.c").forEach(td => td.onclick = () => openDetail(td.dataset.id, td.dataset.wk));
+}
+
+/* --- 상세 모달 --- */
+async function openDetail(id, wk){
+  const m = members[id], r = records[id]?.[wk]; if (!m) return;
+  const box = $("modalBox");
+  if (!r) { box.innerHTML = `<h3 style="margin:0">${esc(m.name)}</h3><p>${weekLabel(wk)} 기록이 없습니다.</p><button class="btn ghost" id="mClose">닫기</button>`; }
+  else {
+    box.innerHTML = `<h3 style="margin:0 0 6px">${esc(m.name)} · ${r.ok?"✅ 달성":"❌ 미달"}</h3>
+      <div style="font-size:14px;line-height:1.7">주간 평균 <b>${fmt(r.avg)}보</b> / 목표 ${fmt(r.goal)}보<br>
+      캡처 기간: ${r.start.replaceAll("-",".")} ~ ${r.end.replaceAll("-",".")}<br>
+      <span style="color:var(--sub);font-size:12px">저장: ${new Date(r.at).toLocaleString("ko-KR")}</span></div>
+      <div id="mImg">${r.img?'<p class="hint">캡처 불러오는 중…</p>':'<p class="hint">사진 없이 직접 입력한 기록입니다.</p>'}</div>
+      ${ADMIN?`<button class="btn danger" id="mDel">이 기록 삭제 (관리자)</button>`:""}
+      <button class="btn ghost" id="mClose">닫기</button>`;
+    if (r.img) store.get(`${ROOT}/thumbs/${id}/${wk}`).then(src => { const el=$("mImg"); if (el) el.innerHTML = src ? `<img src="${src}" alt="인증 캡처">` : ""; });
+    const del = $("mDel");
+    if (del) del.onclick = async () => { if (!confirm("이 기록을 삭제할까요?")) return; await store.remove(`${ROOT}/records/${id}/${wk}`); await store.remove(`${ROOT}/thumbs/${id}/${wk}`); closeModal(); toast("삭제했습니다"); };
+  }
+  $("mClose").onclick = closeModal; $("modal").classList.add("on");
+}
+function closeModal(){ $("modal").classList.remove("on"); }
+$("modal").onclick = e => { if (e.target.id === "modal") closeModal(); };
+
+/* ================================================================
+   회원 탭
+   ================================================================ */
+$("addBtn").onclick = async () => {
+  const name = $("newName").value.trim(), goal = Math.round(+$("newGoal").value);
+  if (!name) { toast("이름을 입력해 주세요"); return; }
+  if (!(goal >= 1000 && goal <= 50000)) { toast("목표는 1,000~50,000보 사이로 입력해 주세요"); return; }
+  if (Object.values(members).some(m => m.name === name)) { toast("이미 등록된 이름입니다"); return; }
+  const id = newId();
+  await store.set(`${ROOT}/members/${id}`, { name, goal, created: Date.now() });
+  localStorage.setItem(LAST_KEY, id);
+  $("newName").value = ""; toast(`${name}님 등록 완료!`);
+};
+function renderMembers(){
+  const list = sortedMembers();
+  $("memberList").innerHTML = list.length ? list.map(([id,m]) => `
+    <div class="member"><span class="nm">${esc(m.name)}</span>
+      <input type="number" value="${m.goal}" step="500" min="1000" data-id="${id}" aria-label="${esc(m.name)} 목표">
+      <button class="btn small ghost" data-save="${id}">변경</button>
+      ${ADMIN?`<button class="btn small danger" data-del="${id}">삭제</button>`:""}
+    </div>`).join("") : `<div class="empty">아직 등록된 회원이 없습니다.</div>`;
+  document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.save, goal = Math.round(+document.querySelector(`input[data-id="${id}"]`).value);
+    if (!(goal >= 1000 && goal <= 50000)) { toast("목표는 1,000~50,000보 사이로 입력해 주세요"); return; }
+    await store.set(`${ROOT}/members/${id}/goal`, goal); toast(`목표를 ${fmt(goal)}보로 변경했습니다`);
+  });
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.del;
+    if (!confirm(`${members[id].name}님과 모든 기록을 삭제할까요?`)) return;
+    await store.remove(`${ROOT}/members/${id}`); await store.remove(`${ROOT}/records/${id}`); await store.remove(`${ROOT}/thumbs/${id}`);
+    toast("삭제했습니다");
+  });
+}
+
+/* ---------------- 실시간 구독 시작 ---------------- */
+store.on(`${ROOT}/members`, v => { members = v || {}; renderAll(); });
+store.on(`${ROOT}/records`, v => { records = v || {}; renderAll(); });
+</script>
+</body>
+</html>
